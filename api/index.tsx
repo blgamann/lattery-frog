@@ -5,6 +5,7 @@ import { serveStatic } from "frog/serve-static";
 import { handle } from "frog/vercel";
 import { abi } from "../abi.ts";
 import { BigNumber, ethers } from "ethers";
+import axios from "axios";
 
 // Uncomment to use Edge Runtime.
 // export const config = {
@@ -102,8 +103,14 @@ app.frame("/created", async (c) => {
   });
 });
 
-app.transaction("/create", (c) => {
+app.transaction("/create", async (c) => {
   const { inputText = "" } = c;
+
+  await axios.post("https://testnetapi.lum0x.com/frame/validation", {
+    farcasterFid: c.frameData?.fid,
+    frameUrl: c.frameData?.url,
+  });
+
   return c.contract({
     abi,
     chainId: "eip155:11155111",
@@ -111,89 +118,6 @@ app.transaction("/create", (c) => {
     args: [5n], // default numPlayers
     to: "0x99d3224457679cb10996dd21120d9fc16e0697eb",
     value: parseEther(inputText),
-  });
-});
-
-app.frame("/game/:id", async (c) => {
-  const url = "https://eth-sepolia.public.blastapi.io	";
-  const contract = new ethers.Contract(
-    "0x99d3224457679cb10996dd21120d9fc16e0697eb",
-    abi,
-    new ethers.providers.JsonRpcProvider(url)
-  );
-
-  const id = c.req.param("id");
-  const players = await contract.getPlayers(id);
-  const playersLength = await contract.getPlayersLength(id);
-
-  if (
-    players[players.length - 1] !== "0x0000000000000000000000000000000000000000"
-  ) {
-    return c.res({
-      image: (
-        <div
-          style={{
-            alignItems: "center",
-            background: "black",
-            backgroundSize: "100% 100%",
-            display: "flex",
-            flexDirection: "column",
-            flexWrap: "nowrap",
-            height: "100%",
-            justifyContent: "center",
-            textAlign: "center",
-            width: "100%",
-          }}
-        >
-          <div style={{ color: "white", display: "flex", fontSize: 60 }}>
-            You can check game result!
-          </div>
-        </div>
-      ),
-      intents: [
-        <Button.Link href={`https://lattery.vercel.app/?game=${id}`}>
-          Game Result
-        </Button.Link>,
-      ],
-    });
-  }
-
-  return c.res({
-    action: "/joined",
-    image: (
-      <div
-        style={{
-          alignItems: "center",
-          background: "black",
-          backgroundSize: "100% 100%",
-          display: "flex",
-          flexDirection: "column",
-          flexWrap: "nowrap",
-          height: "100%",
-          justifyContent: "center",
-          width: "100%",
-        }}
-      >
-        <div
-          style={{
-            color: "white",
-            display: "flex",
-            fontSize: 35,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {`
-         1st player: ${players[0]}\n
-         2nd player: ${players[1]}\n
-         3rd player: ${players[2]}\n
-         4th player: ${players[3]}\n
-         5th player: ${players[4]}`}
-        </div>
-      </div>
-    ),
-    intents: [
-      <Button.Transaction target={`/join/${id}`}>Join</Button.Transaction>,
-    ],
   });
 });
 
